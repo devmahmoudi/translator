@@ -1,14 +1,336 @@
-# Package Starter Kit
+# @devmahmoudi/translator
 
-Starter kit to start building a new amazing package.
+Type-safe client SDK for asynchronous entity translation.
 
-## 🚀 Quick Start
+This package helps frontend repositories:
+
+- enqueue translation jobs after write operations
+- resolve translated entity data on read operations
+- keep translation logic isolated from i18n/framework details
+
+The package is transport-ready (Axios), framework-agnostic, and exported as ESM with TypeScript types.
+
+---
+
+## Features
+
+- Configurable translator domain and service URL via `configureTranslator`
+- Shared `translatorHttpClient` for app-level interceptors (for example `Accept-Language`)
+- `DevMahmoudiTranslatorService` implementation of `ITranslatorService`
+- `createDevMahmoudiTranslateSmartDecorator` to wrap repositories with automatic read/write translation behavior
+- `translate` and `mergeTranslation` helpers for deep, safe translation overlay
+- Strongly typed request/response/job contracts
+
+---
+
+## Installation
+
+Using `pnpm`:
 
 ```bash
-npx degit github:devmahmoudi/package-starter-kit my-new-package
+pnpm add @devmahmoudi/translator
 ```
 
-pnpm:
+Using `npm`:
+
 ```bash
-pnpx degit github:devmahmoudi/package-starter-kit my-new-package
+npm install @devmahmoudi/translator
 ```
+
+Using `yarn`:
+
+```bash
+yarn add @devmahmoudi/translator
+```
+
+---
+
+## Quick Start
+
+### 1) Configure once at app bootstrap
+
+```ts
+import { configureTranslator } from "@devmahmoudi/translator";
+
+configureTranslator({
+  domain: import.meta.env.VITE_TRANSLATOR_DOMAIN,
+  serviceUrl: import.meta.env.VITE_TRANSLATOR_SERVICE_URL,
+});
+```
+
+### 2) Attach current language to requests (recommended)
+
+```ts
+import { translatorHttpClient } from "@devmahmoudi/translator";
+
+translatorHttpClient.interceptors.request.use((config) => {
+  config.headers.set("Accept-Language", "fa");
+  return config;
+});
+```
+
+### 3) Wrap your repository with the smart decorator
+
+```ts
+import { createDevMahmoudiTranslateSmartDecorator } from "@devmahmoudi/translator";
+import { SupabaseTaskRepository } from "./SupabaseTaskRepository";
+
+export const createTaskRepository = () =>
+  createDevMahmoudiTranslateSmartDecorator(new SupabaseTaskRepository(), {
+    entityName: "task",
+    ignoreFields: [
+      "created_at",
+      "updated_at",
+      "task_data.workflow_id",
+      "task_data.form_id",
+    ],
+  });
+```
+
+---
+
+## How It Works
+
+1. `configureTranslator` stores module-level configuration (`domain`, `serviceUrl`).
+2. Write methods (`create*`, `update*`, ...) enqueue translation jobs automatically.
+3. Read methods (`get*`, `find*`, `list*`, ...) fetch translation data and overlay it onto source entities.
+4. Translation is asynchronous: reads can return original source until translation becomes available.
+
+---
+
+## Exported API
+
+### Configuration
+
+#### `configureTranslator(configuration)`
+
+```ts
+function configureTranslator(configuration: TranslatorConfiguration): void;
+```
+
+Sets package-level configuration and updates `translatorHttpClient.defaults.baseURL` when `serviceUrl` is provided.
+
+#### `TranslatorConfiguration`
+
+```ts
+interface TranslatorConfiguration {
+  domain?: string;
+  serviceUrl?: string;
+}
+```
+
+#### `setTranslatorConfiguration(next)` / `getTranslatorConfiguration()`
+
+Low-level configuration helpers exported from `config/translatorConfig`.
+
+- `setTranslatorConfiguration(next: TranslatorConfiguration): void`
+- `getTranslatorConfiguration(): Readonly<TranslatorConfiguration>`
+
+Most applications should use `configureTranslator` instead of writing to config directly.
+
+---
+
+### HTTP Client
+
+#### `translatorHttpClient`
+
+Shared Axios instance used by `DevMahmoudiTranslatorService`.
+
+Default behavior:
+
+- `baseURL = "http://localhost:8055"`
+- `Content-Type: application/json`
+
+You can register interceptors (for auth headers, language headers, request tracing, etc.) once at bootstrap.
+
+---
+
+### Service Layer
+
+#### `ITranslatorService`
+
+```ts
+interface ITranslatorService {
+  enqueueTranslation(
+    request: TranslationRequest,
+  ): Promise<EnqueueTranslationResult>;
+  getTranslation(lookup: TranslationLookup): Promise<Translation | null>;
+  getJob(jobId: number): Promise<TranslationJob | null>;
+}
+```
+
+#### `createTranslatorService(domain?)`
+
+```ts
+function createTranslatorService(domain?: string): ITranslatorService;
+```
+
+Factory for `DevMahmoudiTranslatorService`.
+
+#### `DevMahmoudiTranslatorService`
+
+Axios-based implementation talking to:
+
+- `POST /translations`
+- `GET /translations`
+- `GET /translations/jobs/{id}`
+
+Domain resolution order for requests:
+
+1. explicit request override (`request.domain` / `lookup.domain`)
+2. constructor argument (`new DevMahmoudiTranslatorService(domain)`)
+3. module config (`configureTranslator({ domain })`)
+
+If no domain can be resolved, service methods throw an error.
+
+`getTranslation` and `getJob` return `null` for HTTP 404, and rethrow other errors.
+
+---
+
+### Smart Repository Decorator
+
+#### `createDevMahmoudiTranslateSmartDecorator(repository, config)`
+
+```ts
+function createDevMahmoudiTranslateSmartDecorator<T extends object>(
+  repository: T,
+  config: SmartTranslateConfig,
+): T;
+```
+
+Wraps a repository using `Proxy` and intercepts method calls by name pattern.
+
+Default method classifiers:
+
+- read: `/^(get|find|list|fetch|search|load|read|show|all|query)/i`
+- write: `/^(create|update|insert|upsert|save|store|edit|patch|put)/i`
+
+Behavior:
+
+- write methods: enqueue returned entities for translation
+- read methods: overlay stored translations onto returned entities
+- other methods: passed through unchanged
+
+Supported return shapes for read/write interception:
+
+- single entity with id
+- arrays of entities
+- paginated wrappers with `data`, `items`, or `results` arrays
+
+#### `SmartTranslateConfig`
+
+```ts
+interface SmartTranslateConfig {
+  domain?: string;
+  entityName: string;
+  idKey?: string;
+  ignoreFields?: string[];
+  readMethods?: RegExp;
+  writeMethods?: RegExp;
+}
+```
+
+Notes:
+
+- `idKey` defaults to `"id"` and is always excluded from translation payload.
+- `ignoreFields` supports top-level and dotted nested paths (`"task_data.workflow_id"`).
+- Translation enqueue/overlay errors are logged and treated as best-effort (repository call still succeeds).
+
+---
+
+### Translation Utilities
+
+#### `translate(source, translation?)`
+
+Overlays translated values onto source payload while preserving structure and non-string leaves.
+
+Overloads:
+
+- `translate<T>(source: T, translation?: Translation | null): T`
+- `translate(source, translation, field): unknown`
+
+Useful when rendering data directly without repository decoration.
+
+#### `mergeTranslation(source, translated)`
+
+Recursively overlays translated object/array/string values while preserving source shape and missing fields.
+
+---
+
+### Types
+
+Exported types from `types/translation`:
+
+- `TranslationPayload`
+- `TranslationTargetStatus`
+- `TranslationJobStatus`
+- `TranslationRequest`
+- `TranslationTargetOutcome`
+- `EnqueueTranslationResult`
+- `TranslationLookup`
+- `Translation`
+- `TranslationJob`
+
+Field names intentionally mirror backend payloads (`snake_case`) for zero-remapping integration.
+
+---
+
+## End-to-End Example
+
+```ts
+import {
+  configureTranslator,
+  translatorHttpClient,
+  createDevMahmoudiTranslateSmartDecorator,
+} from "@devmahmoudi/translator";
+
+configureTranslator({
+  domain: "satia-ng-web",
+  serviceUrl: "http://localhost:8055",
+});
+
+translatorHttpClient.interceptors.request.use((config) => {
+  config.headers.set("Accept-Language", "en");
+  return config;
+});
+
+class TaskRepository {
+  async createTask(input: Record<string, unknown>) {
+    // save and return entity
+    return { id: 10, ...input };
+  }
+
+  async getTask() {
+    return { id: 10, title: "عنوان", description: "..." };
+  }
+}
+
+const repository = createDevMahmoudiTranslateSmartDecorator(
+  new TaskRepository(),
+  {
+    entityName: "task",
+    ignoreFields: ["created_at", "updated_at"],
+  },
+);
+
+await repository.createTask({ title: "عنوان" }); // enqueue translation
+const task = await repository.getTask(); // translated overlay when available
+```
+
+---
+
+## Development
+
+From this package directory:
+
+```bash
+pnpm dev
+pnpm build
+pnpm lint
+```
+
+---
+
+## License
+
+ISC
