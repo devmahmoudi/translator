@@ -12,8 +12,11 @@ export interface SmartTranslateConfig {
    * repository, allowing one client to address multiple translation domains.
    */
   domain?: string;
-  /** Entity type name stored with each translation, e.g. "workgroup". */
-  entityName: string;
+  /**
+   * Entity type name stored with each translation, e.g. "workgroup".
+   * Defaults to the repository's runtime class name.
+   */
+  entityName?: string;
   /** Property holding the entity identifier (default "id"). */
   idKey?: string;
   /**
@@ -61,7 +64,6 @@ const DEFAULT_WRITE_METHODS =
  * export const createTaskRepository = () =>
  *   createDevMahmoudiTranslateSmartDecorator(new SupabaseTaskRepository(), {
  *     domain: "satia-ng-web", // optional when configureTranslator() was called
- *     entityName: "task",
  *     ignoreFields: [
  *       "created_at",
  *       "updated_at",
@@ -75,6 +77,7 @@ export default function createDevMahmoudiTranslateSmartDecorator<
   T extends object,
 >(repository: T, config: SmartTranslateConfig): T {
   const translator: ITranslatorService = createTranslatorService(config.domain);
+  const entityName = config.entityName ?? repository.constructor.name;
 
   const idKey = config.idKey ?? "id";
   const readMethods = config.readMethods ?? DEFAULT_READ_METHODS;
@@ -121,15 +124,12 @@ export default function createDevMahmoudiTranslateSmartDecorator<
 
     try {
       await translator.enqueueTranslation({
-        entity_name: config.entityName,
+        entity_name: entityName,
         entity_id: String(entity[idKey]),
         source: pickSource(entity),
       });
     } catch (error) {
-      console.error(
-        `[SmartTranslate] enqueue failed for ${config.entityName}:`,
-        error,
-      );
+      console.error(`[SmartTranslate] enqueue failed for ${entityName}:`, error);
     }
   };
 
@@ -138,7 +138,7 @@ export default function createDevMahmoudiTranslateSmartDecorator<
 
     try {
       const translation = await translator.getTranslation({
-        entity_name: config.entityName,
+        entity_name: entityName,
         entity_id: String(entity[idKey]),
       });
 
@@ -151,7 +151,7 @@ export default function createDevMahmoudiTranslateSmartDecorator<
       return mergeTranslation(entity, translated);
     } catch (error) {
       console.error(
-        `[SmartTranslate] translate failed for ${config.entityName}:`,
+        `[SmartTranslate] translate failed for ${entityName}:`,
         error,
       );
       return entity;
