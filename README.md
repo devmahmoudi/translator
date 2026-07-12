@@ -77,7 +77,6 @@ import { SupabaseTaskRepository } from "./SupabaseTaskRepository";
 
 export const createTaskRepository = () =>
   createDevMahmoudiTranslateSmartDecorator(new SupabaseTaskRepository(), {
-    entityName: "task",
     ignoreFields: [
       "created_at",
       "updated_at",
@@ -133,7 +132,7 @@ Supported return shapes for read/write interception:
 ```ts
 interface SmartTranslateConfig {
   domain?: string;
-  entityName: string;
+  entityName?: string;
   idKey?: string;
   ignoreFields?: string[];
   readMethods?: RegExp;
@@ -143,6 +142,7 @@ interface SmartTranslateConfig {
 
 Notes:
 
+- `entityName` defaults to the repository's runtime class name (for example, `SupabaseTaskRepository`). Set it explicitly when a different or class-name-independent identifier is needed.
 - `idKey` defaults to `"id"` and is always excluded from translation payload.
 - `ignoreFields` supports top-level and dotted nested paths (`"task_data.workflow_id"`).
 - Translation enqueue/overlay errors are logged and treated as best-effort (repository call still succeeds).
