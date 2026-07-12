@@ -53,8 +53,8 @@ yarn add @devmahmoudi/translator
 import { configureTranslator } from "@devmahmoudi/translator";
 
 configureTranslator({
-  domain: import.meta.env.VITE_TRANSLATOR_DOMAIN,
-  serviceUrl: import.meta.env.VITE_TRANSLATOR_SERVICE_URL,
+  domain: "Project domain value. For example: press.satia.co. You can define this value in your project .env",
+  serviceUrl: "Translator service server url",
 });
 ```
 
