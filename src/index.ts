@@ -12,4 +12,4 @@ export * from "./services/DevMahmoudiTranslatorService";
 export * from "./services/translatorHttpClient";
 
 export * from "./types/translation";
-export * from "./utils/translate";ma
+export * from "./utils/translate";
