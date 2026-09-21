@@ -9,7 +9,9 @@ const DEFAULT_TRANSLATOR_SERVICE_URL = "http://localhost:8055";
  * bootstrap (e.g. to inject the `Accept-Language` header from its i18n layer)
  * without the translator module depending on i18n.
  */
-export const translatorHttpClient = axios.create({
-  baseURL: DEFAULT_TRANSLATOR_SERVICE_URL,
-  headers: { "Content-Type": "application/json" },
-});
+export const translatorHttpClient = (server?: string) => {
+  return axios.create({
+    baseURL: server ?? DEFAULT_TRANSLATOR_SERVICE_URL,
+    headers: { "Content-Type": "application/json" },
+  });
+};

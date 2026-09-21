@@ -28,7 +28,8 @@ export class DevMahmoudiTranslatorService implements ITranslatorService {
    */
   constructor(
     domain?: string,
-    http: AxiosInstance = translatorHttpClient,
+    server?: string,
+    http: AxiosInstance = translatorHttpClient(server),
   ) {
     this.domain = domain?.trim() || undefined;
     this.http = http;

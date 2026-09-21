@@ -8,6 +8,10 @@ import { mergeTranslation, translate } from "../utils/translate";
  */
 export interface SmartTranslateConfig {
   /**
+   * Translator service address
+   */
+  server?: string;
+  /**
    * Application namespace. Overrides the module-level configuration for this
    * repository, allowing one client to address multiple translation domains.
    */
@@ -76,7 +80,7 @@ const DEFAULT_WRITE_METHODS =
 export default function createDevMahmoudiTranslateSmartDecorator<
   T extends object,
 >(repository: T, config: SmartTranslateConfig): T {
-  const translator: ITranslatorService = createTranslatorService(config.domain);
+  const translator: ITranslatorService = createTranslatorService(config.domain, config.server);
 
   const idKey = config.idKey ?? "id";
   const readMethods = config.readMethods ?? DEFAULT_READ_METHODS;
