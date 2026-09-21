@@ -26,7 +26,7 @@ export interface TranslationRequest {
    * Note: the set of target/supported languages is owned by the translator
    * service (its env), not the client, to prevent token-exhaustion abuse.
    */
-  lang?: string;
+  lang: string;
   /**
    * Application namespace. Usually injected by the translator service from
    * its constructor or `configureTranslator()`.
@@ -65,7 +65,7 @@ export interface TranslationLookup {
    * Language of the stored content (a target language). Optional: when omitted
    * it is resolved from request headers by the service layer.
    */
-  lang?: string;
+  lang: string;
   /** Application namespace; service-level configuration is used when omitted. */
   domain?: string;
   entity_name: string;

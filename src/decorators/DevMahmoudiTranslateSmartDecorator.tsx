@@ -16,6 +16,8 @@ export interface SmartTranslateConfig {
   entityName: string;
   /** Property holding the entity identifier (default "id"). */
   idKey?: string;
+
+  lang: string;
   /**
    * Fields that must NOT be translated. Supports top-level names and dotted
    * nested paths, e.g. `"created_at"` or `"task_data.workflow_id"`.
@@ -124,6 +126,7 @@ export default function createDevMahmoudiTranslateSmartDecorator<
         entity_name: config.entityName,
         entity_id: String(entity[idKey]),
         source: pickSource(entity),
+        lang: config.lang
       });
     } catch (error) {
       console.error(
@@ -140,6 +143,7 @@ export default function createDevMahmoudiTranslateSmartDecorator<
       const translation = await translator.getTranslation({
         entity_name: config.entityName,
         entity_id: String(entity[idKey]),
+        lang: config.lang,
       });
 
       if (!translation) return entity;
